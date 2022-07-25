@@ -94,6 +94,8 @@ def get_mpe_currentmonth_text(data_dict):
   text += f'Segmento: Real R${data_dict["seg_real"]}k | Forecast: R${data_dict["seg_cast"]}k\n'
   text += f'Digital: Real R${data_dict["dig_real"]}k ({data_dict["perc_dig"]}%)| Forecast: R${data_dict["dig_cast"]}k\n'
   text += '-----------------------------------------------------------------------\n'
+  text += '🏆 Destaques 🏆\n'
+  text += f'No forecast do MPE Consolidado, estamos com {data_dict["ating"]}% de atingimento da meta de participação do mês de {data_dict["mes"]}/{data_dict["ano"]} ({data_dict["meta"]}%).'
   return text
   
 def get_mpe_data_dict(type='parcial'):
@@ -113,12 +115,15 @@ def get_mpe_data_dict(type='parcial'):
     #informações Gerais
     data_dict['dia'] = now.day-1
     data_dict['mes'] = now.month
+    data_dict['ano'] = now.year
     data_dict['seg_real'] = round(df.receita.sum()/1000)
     data_dict['seg_cast'] = data_dict['seg_real']
     data_dict['dig_real'] = round(df.loc[df['flag_digital']==1].receita.sum()/1000)
     data_dict['dig_cast'] = data_dict['dig_real']
     data_dict['perc_dig'] = round((data_dict['dig_real']/
                                    data_dict['seg_real'])*100,1)
+    data_dict['meta'] = 20.3
+    data_dict['ating'] = round((data_dict['perc_dig']/data_dict['meta'])*100,1)
 
     #informações Concessão
     data_dict['con_seg_real'] = round(df_con.receita.sum()/1000)
