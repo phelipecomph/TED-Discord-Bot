@@ -1,5 +1,6 @@
 import boto3
 import os
+import datetime
 import time
 import pandas as pd
 
@@ -26,10 +27,8 @@ s3_client = boto3.client(
 
 
 def test_feature():
-  query = get_mpe_query()
-  query_response = run_athena_query(query,test=False)
-  df = download_s3_result(query_response,test=False)
-  print(df['eixo_receita'].sum())
+  data_dict = get_mpe_data_dict()
+  return get_mpe_currentmonth_text(data_dict)
 
 def run_athena_query(query, test=False):
   if not test:
@@ -63,38 +62,116 @@ def download_s3_result(query_response, test=False):
       f"{S3_OUTPUT_DIRECTORY}/{query_response['QueryExecutionId']}.csv",
       "athena_query_results.csv",)
   return pd.read_csv("athena_query_results.csv")
+
+def get_mpe_currentmonth_text(data_dict):
   
-def get_mpe_query():
-  return """
-          SELECT
-          stv.data_ref,
-          stv.mes_ref,
-          stv.cpf_cnpj_cli,
-          stv.eixo_receita,
-          stv.segmento,
-          stv.area_atu,
-          stv.regional_contrato,
-          stv.regional_contrato_atualizada,
-          stv.regional_vendas,
-          stv.familia_produto,
-          stv.familia_pdt,
-          stv.familia_produto_atualizada,
-          stv.produto,
-          stv.velocidade_pdt,
-          stv.status_resumo,
-          stv.canal_venda,
-          stv.canal_resumo_atualizado,
-          stv.nome_membro,
-          stv.tipo_pessoa,
-          stv.flag_franquia,
-          stv.projeto,
-          stv.dsc_cnae,
-          stv.meio_pgt,
-          stv.mdo_envio
-          FROM "digital"."trusted_esteira_vendas" stv
-          WHERE segmento = 'EMPRESARIAL'
-          AND status_resumo = 'FECHADO'
-          AND flag_alteracao = '1'
-          AND to_date(data_ref,'dd/mm/yyyy') > date_add('month', -1, current_date) 
-          order by data_ref
-          """
+  data_dict = get_mpe_data_dict()
+  
+  text  = 'Hello @Skywalkers!\n'
+  text += f'📈 Resumo Resultados 🇲 🇵 🇪 até {data_dict["dia"]}/{data_dict["mes"]} 📊\n'
+  text += '-----------------------------------------------------------------------\n\n'
+  text += '**Concessão**\n'
+  text += f'Segmento: Real R${data_dict["con_seg_real"]}k | Forecast: R${data_dict["con_seg_cast"]}k\n'
+  text += f'Digital: Real R${data_dict["con_dig_real"]}k ({data_dict["con_perc_dig"]}%)| Forecast: R${data_dict["con_dig_cast"]}k\n\n'
+  text += '**Receita por canal Digital:**\n'
+  text += f'Crosseling: R${data_dict["con_CROSSELING_real"]}k | Forecast: R${data_dict["con_CROSSELING_cast"]}k\n'
+  text += f'Digital Empresas: R${data_dict["con_DIGITAL EMPRESAS_real"]}k | Forecast: R${data_dict["con_DIGITAL EMPRESAS_cast"]}k\n'
+  text += f'ON: R${data_dict["con_ON_real"]}k | Forecast: R${data_dict["con_ON_cast"]}k\n'
+  text += f'Portal de Vendas: R${data_dict["con_PORTAL DE VENDAS DIGITAL_real"]}k | Forecast: R${data_dict["con_PORTAL DE VENDAS DIGITAL_cast"]}k\n'
+  text += f'Tech: R${data_dict["con_TECH_real"]}k | Forecast: R${data_dict["con_TECH_cast"]}k\n'
+  text += f'Whatsapp Vendas: R${data_dict["con_WHATSAPP_real"]}k | Forecast: R${data_dict["con_WHATSAPP_cast"]}k\n\n\n'
+  text += '**Expansão**\n'
+  text += f'Segmento: Real R${data_dict["exp_seg_real"]}k | Forecast: R${data_dict["exp_seg_cast"]}k\n'
+  text += f'Digital: Real R${data_dict["exp_dig_real"]}k ({data_dict["exp_perc_dig"]}%)| Forecast: R${data_dict["exp_dig_cast"]}k\n\n'
+  text += '**Receita por canal Digital:**\n'
+  text += f'Crosseling: R${data_dict["exp_CROSSELING_real"]}k | Forecast: R${data_dict["exp_CROSSELING_cast"]}k\n'
+  text += f'Digital Empresas: R${data_dict["exp_DIGITAL EMPRESAS_real"]}k | Forecast: R${data_dict["exp_DIGITAL EMPRESAS_cast"]}k\n'
+  text += f'ON: R${data_dict["exp_ON_real"]}k | Forecast: R${data_dict["exp_ON_cast"]}k\n'
+  text += f'Portal de Vendas: R${data_dict["exp_PORTAL DE VENDAS DIGITAL_real"]}k | Forecast: R${data_dict["exp_PORTAL DE VENDAS DIGITAL_cast"]}k\n'
+  text += f'Tech: R${data_dict["exp_TECH_real"]}k | Forecast: R${data_dict["exp_TECH_cast"]}k\n'
+  text += f'Whatsapp Vendas: R${data_dict["exp_WHATSAPP_real"]}k | Forecast: R${data_dict["exp_WHATSAPP_cast"]}k\n\n\n'
+  text += '**Consolidado**\n'
+  text += f'Segmento: Real R${data_dict["seg_real"]}k | Forecast: R${data_dict["seg_cast"]}k\n'
+  text += f'Digital: Real R${data_dict["dig_real"]}k ({data_dict["perc_dig"]}%)| Forecast: R${data_dict["dig_cast"]}k\n'
+  text += '-----------------------------------------------------------------------\n'
+  return text
+  
+def get_mpe_data_dict(type='parcial'):
+  now = datetime.datetime.now()
+  data_dict = {}
+  if type == 'parcial':
+    query = get_mpe_query()
+    query_response = run_athena_query(query,test=False)
+    df = download_s3_result(query_response,test=False)
+
+    canais_digitais = ['WHATSAPP','TECH','PORTAL DE VENDAS DIGITAL','ON','DIGITAL EMPRESAS','CROSSELING']
+    df['flag_digital'] = 0
+    df.loc[df['canal_resumo_atualizado'].isin(canais_digitais), 'flag_digital'] = 1
+    df_con = df.loc[df['area_atu']=='CONCESSÃO']
+    df_exp = df.loc[df['area_atu']=='EXPANSÃO']
+
+    #informações Gerais
+    data_dict['dia'] = now.day-1
+    data_dict['mes'] = now.month
+    data_dict['seg_real'] = round(df.receita.sum()/1000)
+    data_dict['seg_cast'] = data_dict['seg_real']
+    data_dict['dig_real'] = round(df.loc[df['flag_digital']==1].receita.sum()/1000)
+    data_dict['dig_cast'] = data_dict['dig_real']
+    data_dict['perc_dig'] = round((data_dict['dig_real']/
+                                   data_dict['seg_real'])*100,1)
+
+    #informações Concessão
+    data_dict['con_seg_real'] = round(df_con.receita.sum()/1000)
+    data_dict['con_seg_cast'] = data_dict['con_seg_real']
+    data_dict['con_dig_real'] = round(df_con.loc[df_con['flag_digital']==1].receita.sum()/1000)
+    data_dict['con_dig_cast'] = data_dict['con_dig_real']
+    data_dict['con_perc_dig'] = round((data_dict['con_dig_real']/
+                                   data_dict['con_seg_real'])*100,1)
+    for cna in canais_digitais:
+      data_dict[f'con_{cna}_real'] = round(df_con.loc[(df_con['canal_resumo_atualizado']==cna)].receita.sum()/1000)
+      data_dict[f'con_{cna}_cast'] = data_dict[f'con_{cna}_real']
+
+    #informações Expansão
+    data_dict['exp_seg_real'] = round(df_exp.receita.sum()/1000)
+    data_dict['exp_seg_cast'] = data_dict['exp_seg_real']
+    data_dict['exp_dig_real'] = round(df_exp.loc[df_exp['flag_digital']==1].receita.sum()/1000)
+    data_dict['exp_dig_cast'] = data_dict['exp_dig_real']
+    data_dict['exp_perc_dig'] = round((data_dict['exp_dig_real']/
+                                   data_dict['exp_seg_real'])*100,1)
+    for cna in canais_digitais:
+      data_dict[f'exp_{cna}_real'] = round(df_exp.loc[(df_exp['canal_resumo_atualizado']==cna)].receita.sum()/1000)
+      data_dict[f'exp_{cna}_cast'] = data_dict[f'exp_{cna}_real']
+    
+    return data_dict
+
+
+
+def get_mpe_query(type='parcial'):
+  if type == 'parcial':
+    return """
+            SELECT 
+            area_atu,
+            canal_resumo_atualizado,
+            sum(eixo_receita) as receita
+            FROM trusted_esteira_vendas 
+            WHERE segmento = 'EMPRESARIAL'
+            AND status_resumo = 'FECHADO'
+            AND flag_alteracao = '1'
+            AND area_atu in ('CONCESSÃO','EXPANSÃO')
+            AND cast(month as int) = cast(month(current_date) as int)
+            GROUP BY area_atu, canal_resumo_atualizado
+            """
+  elif type == 'fechamento':
+    return """
+            SELECT 
+            area_atu,
+            canal_resumo_atualizado,
+            sum(eixo_receita) as receita
+            FROM trusted_esteira_vendas 
+            WHERE segmento = 'EMPRESARIAL'
+            AND status_resumo = 'FECHADO'
+            AND flag_alteracao = '1'
+            AND cast(month as int) =  cast(month(current_date) as int)-1
+            GROUP BY area_atu, canal_resumo_atualizado
+            """
+    
