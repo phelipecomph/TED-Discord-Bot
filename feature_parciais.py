@@ -2,6 +2,7 @@ import boto3
 import os
 import datetime
 import time
+import calendar
 import pandas as pd
 
 
@@ -26,8 +27,7 @@ s3_client = boto3.client(
 )
 
 
-def test_feature():
-  
+def test_feature(): 
   return get_mpe_currentmonth_text()
 
 def run_athena_query(query, test=False):
@@ -112,14 +112,15 @@ def get_mpe_data_dict(type='parcial'):
     df_con = df.loc[df['area_atu']=='CONCESSÃO']
     df_exp = df.loc[df['area_atu']=='EXPANSÃO']
 
+    days_in_month = calendar.monthrange(now.year,now.month)[1]
     #informações Gerais
     data_dict['dia'] = now.day-1
     data_dict['mes'] = now.month
     data_dict['ano'] = now.year
     data_dict['seg_real'] = round(df.receita.sum()/1000)
-    data_dict['seg_cast'] = data_dict['seg_real']
+    data_dict['seg_cast'] = round((data_dict['seg_real']/data_dict['dia'])*days_in_month)
     data_dict['dig_real'] = round(df.loc[df['flag_digital']==1].receita.sum()/1000)
-    data_dict['dig_cast'] = data_dict['dig_real']
+    data_dict['dig_cast'] = round((data_dict['dig_real']/data_dict['dia'])*days_in_month)
     data_dict['perc_dig'] = round((data_dict['dig_real']/
                                    data_dict['seg_real'])*100,1)
     data_dict['meta'] = 20.3
@@ -127,25 +128,25 @@ def get_mpe_data_dict(type='parcial'):
 
     #informações Concessão
     data_dict['con_seg_real'] = round(df_con.receita.sum()/1000)
-    data_dict['con_seg_cast'] = data_dict['con_seg_real']
+    data_dict['con_seg_cast'] = round((data_dict['con_seg_real']/data_dict['dia'])*days_in_month)
     data_dict['con_dig_real'] = round(df_con.loc[df_con['flag_digital']==1].receita.sum()/1000)
-    data_dict['con_dig_cast'] = data_dict['con_dig_real']
+    data_dict['con_dig_cast'] = round((data_dict['con_dig_real']/data_dict['dia'])*days_in_month)
     data_dict['con_perc_dig'] = round((data_dict['con_dig_real']/
                                    data_dict['con_seg_real'])*100,1)
     for cna in canais_digitais:
       data_dict[f'con_{cna}_real'] = round(df_con.loc[(df_con['canal_resumo_atualizado']==cna)].receita.sum()/1000)
-      data_dict[f'con_{cna}_cast'] = data_dict[f'con_{cna}_real']
+      data_dict[f'con_{cna}_cast'] = round((data_dict[f'con_{cna}_real']/data_dict['dia'])*days_in_month)
 
     #informações Expansão
     data_dict['exp_seg_real'] = round(df_exp.receita.sum()/1000)
-    data_dict['exp_seg_cast'] = data_dict['exp_seg_real']
+    data_dict['exp_seg_cast'] = round((data_dict['exp_seg_real']/data_dict['dia'])*days_in_month)
     data_dict['exp_dig_real'] = round(df_exp.loc[df_exp['flag_digital']==1].receita.sum()/1000)
-    data_dict['exp_dig_cast'] = data_dict['exp_dig_real']
+    data_dict['exp_dig_cast'] = round((data_dict['exp_dig_real']/data_dict['dia'])*days_in_month)
     data_dict['exp_perc_dig'] = round((data_dict['exp_dig_real']/
                                    data_dict['exp_seg_real'])*100,1)
     for cna in canais_digitais:
       data_dict[f'exp_{cna}_real'] = round(df_exp.loc[(df_exp['canal_resumo_atualizado']==cna)].receita.sum()/1000)
-      data_dict[f'exp_{cna}_cast'] = data_dict[f'exp_{cna}_real']
+      data_dict[f'exp_{cna}_cast'] = round((data_dict[f'exp_{cna}_real']/data_dict['dia'])*days_in_month)
     
     return data_dict
 
