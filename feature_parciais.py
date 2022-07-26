@@ -27,8 +27,8 @@ s3_client = boto3.client(
 
 
 def test_feature():
-  data_dict = get_mpe_data_dict()
-  return get_mpe_currentmonth_text(data_dict)
+  
+  return get_mpe_currentmonth_text()
 
 def run_athena_query(query, test=False):
   if not test:
@@ -63,7 +63,7 @@ def download_s3_result(query_response, test=False):
       "athena_query_results.csv",)
   return pd.read_csv("athena_query_results.csv")
 
-def get_mpe_currentmonth_text(data_dict):
+def get_mpe_currentmonth_text():
   
   data_dict = get_mpe_data_dict()
   
