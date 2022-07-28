@@ -4,6 +4,7 @@ import datetime
 import time
 import calendar
 import pandas as pd
+from apscheduler.triggers.cron import CronTrigger
 
 
 AWS_ACCESS_KEY = os.environ['AWS_ACESSKEY']
@@ -27,6 +28,23 @@ s3_client = boto3.client(
 )
 
 mpe_role_id = 790626583798349824
+id_channel_mpe = 789570138600374292
+
+def schedule_results(scheduler, clx):
+  #Time = UTF (some 3)
+  global client
+  client = clx
+  scheduler.add_job(send_mpe_result,  CronTrigger(hour="13", minute="0", second="0")) 
+
+
+async def send_mpe_result():
+  now = datetime.datetime.now()
+  await client.wait_until_ready()
+  c = client.get_channel(id_channel_mpe)
+  if now.day <= 4 and now.weekday() in [0,3]: #Segunda ou Quinta Até dia 4 
+    await c.send(get_mpe_lastmonth_text())
+  if now.weekday() in [0,3]: #Segunda ou Quinta
+    await c.send(get_mpe_currentmonth_text())
 
 def run_athena_query(query, test=False):
   if not test:
@@ -133,23 +151,23 @@ def get_mpe_lastmonth_text():
   text += 'https://datastudio.google.com/u/1/reporting/b18a240f-5c0f-46af-8ff9-865c1f1b3bb6/page/ImyvC'
   return text
 
-def get_mpe_data_dict(type='parcial'):
+def get_mpe_data_dict(type='parcial',test=False):
   now = datetime.datetime.now()
   data_dict = {}
   if type == 'parcial':
     query = get_mpe_query()
-    query_response = run_athena_query(query,test=False)
-    df = download_s3_result(query_response,test=False)
+    query_response = run_athena_query(query,test=test)
+    df = download_s3_result(query_response,test=test)
   elif type == 'fechamento':
     query = get_mpe_query(type='fechamento')
-    query_response = run_athena_query(query,test=False)
-    df = download_s3_result(query_response,test=False)
+    query_response = run_athena_query(query,test=test)
+    df = download_s3_result(query_response,test=test)
     
   canais_digitais = ['WHATSAPP','TECH','PORTAL DE VENDAS DIGITAL','ON','DIGITAL EMPRESAS','CROSSELING']
   df['flag_digital'] = 0
   df.loc[df['canal_resumo_atualizado'].isin(canais_digitais), 'flag_digital'] = 1
   df_con = df.loc[df['area_atu']=='CONCESSÃO']
-  df_exp = df.loc[df['area_atu']=='EXPANSÃO']
+  df_exp = df.loc[df['area_atu']!='CONCESSÃO']
 
   days_in_month = calendar.monthrange(now.year,now.month)[1]
   #informações Gerais
@@ -187,7 +205,8 @@ def get_mpe_data_dict(type='parcial'):
   for cna in canais_digitais:
     data_dict[f'exp_{cna}_real'] = round(df_exp.loc[(df_exp['canal_resumo_atualizado']==cna)].receita.sum()/1000)
     data_dict[f'exp_{cna}_cast'] = round((data_dict[f'exp_{cna}_real']/data_dict['dia'])*days_in_month)
-  
+    
+  os.remove("athena_query_results.csv")
   return data_dict
 
 
@@ -203,7 +222,7 @@ def get_mpe_query(type='parcial'):
             WHERE segmento = 'EMPRESARIAL'
             AND status_resumo = 'FECHADO'
             AND flag_alteracao = '1'
-            AND area_atu in ('CONCESSÃO','EXPANSÃO')
+            AND area_atu in ('CONCESSÃO','EXPANSÃO','FALCON','EXP FRANQUIAS')
             AND cast(month as int) = cast(month(current_date) as int)
             GROUP BY area_atu, canal_resumo_atualizado
             """
@@ -217,6 +236,7 @@ def get_mpe_query(type='parcial'):
             WHERE segmento = 'EMPRESARIAL'
             AND status_resumo = 'FECHADO'
             AND flag_alteracao = '1'
+            AND area_atu in ('CONCESSÃO','EXPANSÃO','FALCON','EXP FRANQUIAS')
             AND cast(month as int) =  cast(month(current_date) as int)-1
             GROUP BY area_atu, canal_resumo_atualizado
             """
