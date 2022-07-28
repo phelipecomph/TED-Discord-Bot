@@ -2,7 +2,7 @@ import pandas as pd
 import datetime
 from apscheduler.triggers.cron import CronTrigger
 
-id_channel = 1001486913846390825
+id_channel = 789468494298742794
 
 
 def schedule_ferias(scheduler,clx):

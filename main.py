@@ -15,8 +15,8 @@ client = discord.Client(intents=intents)
 async def on_ready():
   print(f'Logamos com sucesso como {client.user}')
   scheduler = AsyncIOScheduler()
-  schedule_results(scheduler,client)
-  schedule_ferias(scheduler,client)
+  schedule_results(scheduler,client) #Segunda e Quinta 10:00 no SkyWalkers
+  schedule_ferias(scheduler,client) #Terça e Sexta 14:00 no salão
   scheduler.start()
   print('Iniciamos o Cronograma com Sucesso')
   
