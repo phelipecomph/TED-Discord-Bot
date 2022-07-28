@@ -18,7 +18,7 @@ async def on_ready():
   schedule_results(scheduler,client)
   schedule_ferias(scheduler,client)
   scheduler.start()
-  print('Iniciamos o Cronograma com sucesso')
+  print('Iniciamos o Cronograma com Sucesso')
   
   
 @client.event

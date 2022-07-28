@@ -31,10 +31,9 @@ mpe_role_id = 790626583798349824
 id_channel_mpe = 789570138600374292
 
 def schedule_results(scheduler, clx):
-  #Time = UTF (some 3)
   global client
   client = clx
-  scheduler.add_job(send_mpe_result,  CronTrigger(hour="13", minute="0", second="0")) 
+  scheduler.add_job(send_mpe_result,  CronTrigger(hour="13", minute="0", second="0")) #10:00:00
   print('RESULTADOS Adicionado ao Cronograma com Sucesso')
 
 async def send_mpe_result():
