@@ -35,7 +35,7 @@ def schedule_results(scheduler, clx):
   global client
   client = clx
   scheduler.add_job(send_mpe_result,  CronTrigger(hour="13", minute="0", second="0")) 
-
+  print('RESULTADOS Adicionado ao Cronograma com Sucesso')
 
 async def send_mpe_result():
   now = datetime.datetime.now()
